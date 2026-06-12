@@ -142,16 +142,17 @@ def style_figure(fig, axes):
 
 def show_compact_plot(
     fig,
-    center_ratio: float = 2,
+    chart_ratio: float = 2,
+    empty_ratio: float = 1,
 ) -> None:
-    left_col, chart_col, right_col = st.columns(
-        [1.5, center_ratio, 1.5]
+    chart_col, empty_col = st.columns(
+        [chart_ratio, empty_ratio]
     )
 
     with chart_col:
         st.pyplot(
             fig,
-            use_container_width=False,
+            use_container_width=True,
         )
 
     plt.close(fig)
