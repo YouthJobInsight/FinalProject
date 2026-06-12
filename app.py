@@ -547,19 +547,7 @@ def clean_worktype_category(value):
     text = str(value).strip()
 
     # 문자열 앞의 하이픈 기호 제거
-    while text.startswith(("-", "–", "—")):
-        text = text[1:].lstrip()
-
-    return text
-
-
-def clean_worktype_category(value):
-    if pd.isna(value):
-        return pd.NA
-
-    text = str(value).strip()
-
-    while text.startswith(("-", "–", "—")):
+    while text.startswith(("-", "\u2013", "\u2014")):
         text = text[1:].lstrip()
 
     return text
