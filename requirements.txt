@@ -6,3 +6,4 @@ seaborn
 plotly
 lifelines
 scikit-learn
+fonts-nanum
