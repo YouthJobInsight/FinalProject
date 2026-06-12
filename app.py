@@ -540,15 +540,22 @@ worktype_df = run_query(sql_worktype)
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 
 # category의 앞뒤 공백과 앞쪽 하이픈 제거
+def clean_worktype_category(value):
+    if pd.isna(value):
+        return pd.NA
+
+    text = str(value).strip()
+
+    # 문자열 앞의 하이픈 기호 제거
+    while text.startswith(("-", "–", "—")):
+        text = text[1:].lstrip()
+
+    return text
+
+
 worktype_df["category_clean"] = (
     worktype_df["category"]
-    .astype(str)
-    .str.strip()
-    .str.replace(
-        r"^[\-\–\—]\s*",
-        "",
-        regex=True,
-    )
+    .map(clean_worktype_category)
 )
 
 worktype_df["year"] = pd.to_numeric(
