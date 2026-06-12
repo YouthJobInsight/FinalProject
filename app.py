@@ -248,9 +248,9 @@ valid_youth AS (
 
 SELECT
     pid,
-    observed_months,
-    left_first_job,
-    early_exit_12m,
+    CAST(observed_months AS REAL) AS observed_months,
+    CAST(left_first_job AS INTEGER) AS left_first_job,
+    CAST(early_exit_12m AS INTEGER) AS early_exit_12m,
     regular_label
 
 FROM valid_youth
@@ -260,8 +260,46 @@ WHERE regular_label IS NOT NULL
 
 survival_df = run_query(sql_survival)
 
-from lifelines import KaplanMeierFitter
+# SQLite에서 TEXT로 읽힌 숫자 열을 실제 숫자형으로 변환
+numeric_columns = [
+    "observed_months",
+    "left_first_job",
+    "early_exit_12m",
+]
 
+for column in numeric_columns:
+    survival_df[column] = pd.to_numeric(
+        survival_df[column],
+        errors="coerce",
+    )
+
+# 생존분석에 필수인 값이 없는 행 제외
+survival_df = survival_df.dropna(
+    subset=[
+        "observed_months",
+        "left_first_job",
+        "regular_label",
+    ]
+).copy()
+
+# 잘못된 근속기간 제거
+survival_df = survival_df[
+    survival_df["observed_months"] > 0
+].copy()
+
+# 사건 여부는 0 또는 1의 정수로 정리
+survival_df["left_first_job"] = (
+    survival_df["left_first_job"]
+    .astype(int)
+)
+
+survival_df["early_exit_12m"] = (
+    survival_df["early_exit_12m"]
+    .fillna(0)
+    .astype(int)
+)
+
+from lifelines import KaplanMeierFitter
 
 fig, ax = plt.subplots(figsize=(10, 6))
 
