@@ -267,8 +267,7 @@ fig.suptitle(
 )
 
 plt.tight_layout()
-st.pyplot(fig)
-plt.close(fig)
+show_compact_plot(fig)
 
 st.info(
 """
@@ -528,10 +527,9 @@ if plotted_groups == 0:
     st.error(
         "정규직·비정규직 생존분석 표본을 찾지 못했습니다."
     )
+    plt.close(fig)
 else:
-    st.pyplot(fig)
-
-plt.close(fig)
+    show_compact_plot(fig)
 
 
 with st.expander("사용한 SQL 보기"):
@@ -706,8 +704,7 @@ ax.set_ylabel("")
 style_figure(fig, ax)
 plt.tight_layout()
 
-st.pyplot(fig)
-plt.close(fig)
+show_compact_plot(fig)
 
 st.info(
     """
@@ -782,8 +779,7 @@ sns.despine()
 
 plt.tight_layout()
 
-st.pyplot(fig)
-plt.close(fig)
+show_compact_plot(fig)
 
 sql_reason_yearly = """
 SELECT
@@ -850,8 +846,7 @@ ax.legend(
 sns.despine()
 plt.tight_layout()
 
-st.pyplot(fig)
-plt.close(fig)
+show_compact_plot(fig)
 
 st.info(
     """
@@ -1041,8 +1036,7 @@ ax.grid(
 style_figure(fig, ax)
 plt.tight_layout()
 
-st.pyplot(fig)
-plt.close(fig)
+show_compact_plot(fig)
 
 st.info(
     """
@@ -1195,8 +1189,7 @@ sns.despine()
 
 plt.tight_layout()
 
-st.pyplot(fig)
-plt.close(fig)
+show_compact_plot(fig)
 
 sql_job_quality = """
 WITH first_job AS (
@@ -1360,8 +1353,7 @@ sns.despine()
 
 plt.tight_layout()
 
-st.pyplot(fig)
-plt.close(fig)
+show_compact_plot(fig)
 st.info(
     """
     **핵심 인사이트**
