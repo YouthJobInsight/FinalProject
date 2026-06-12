@@ -190,7 +190,7 @@ wage_turnover_df = run_query(sql_wage_turnover)
 fig, (ax1, ax2) = plt.subplots(
     2,
     1,
-    figsize=(11, 7),
+    figsize=(8, 5),
     sharex=True,
     gridspec_kw={"height_ratios": [1, 1]},
 )
@@ -448,7 +448,7 @@ survival_df["early_exit_12m"] = (
 
 from lifelines import KaplanMeierFitter
 
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(8, 5))
 
 kmf = KaplanMeierFitter()
 
@@ -645,7 +645,7 @@ vmin = np.floor(pivot.min().min())
 vmax = np.ceil(pivot.max().max())
 norm = Normalize(vmin=vmin, vmax=vmax)
 
-fig, ax = plt.subplots(figsize=(9.2, 5.2))
+fig, ax = plt.subplots(figsize=(8, 5))
 
 im = ax.imshow(
     pivot.values,
@@ -734,7 +734,7 @@ ORDER BY avg_share ASC
 
 reason_avg_df = run_query(sql_reason_avg)
 
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(8, 5))
 
 reason_colors = [
     "#D9D9D9",
@@ -800,7 +800,7 @@ columns="category",
 values="share",
 )
 
-fig, ax = plt.subplots(figsize=(11, 6))
+fig, ax = plt.subplots(figsize=(8, 4))
 
 reason_color_map = {
     "개인/가족적이유(건강,육아,결혼등)": "#9C5300",
@@ -981,7 +981,7 @@ coef_df = pd.DataFrame(
 # 회귀계수 그래프
 # =========================================================
 
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(8, 5))
 
 colors = [
     SOFT_ORANGE if value < 0 else ACCENT_RED
@@ -1301,7 +1301,7 @@ quality_df = run_query(sql_job_quality)
 x = np.arange(len(quality_df))
 width = 0.34
 
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(8, 5))
 
 bars1 = ax.bar(
     x - width / 2,
