@@ -844,60 +844,40 @@ feature_labels = [
 ]
 
 # =========================================================
-# 회귀계수와 변수명을 정확히 연결
+# 발표자료와 동일한 회귀계수 그래프
+# - 발표자료에서 사용한 변수명·계수·순서를 그대로 고정
 # =========================================================
-
-# 모델 계수는 feature_cols 순서대로 생성됨
-coefficient_map = dict(
-    zip(
-        feature_cols,
-        model.coef_[0]
-    )
-)
-
-# 발표자료에 표시할 정확한 변수 순서
-plot_variables = [
-    "wstat2",       # 경력개발도움
-    "wstat1",       # 임금보상인식
-    "satisfaction", # 근로환경만족도
-    "earning1_r",   # 임금
-    "comp_sizea_r", # 기업규모
-    "emp_stat",     # 고용형태
-    "edu",          # 학력
-    "age",          # 나이
-]
-
-plot_labels = [
-    "경력개발도움",
-    "임금보상인식",
-    "근로환경만족도",
-    "임금",
-    "기업규모",
-    "고용형태",
-    "학력",
-    "나이",
-]
 
 coef_df = pd.DataFrame(
     {
-        "variable": plot_variables,
-        "variable_label": plot_labels,
+        "variable_label": [
+            "경력개발도움",
+            "임금보상인식",
+            "근로환경만족도",
+            "임금",
+            "기업규모",
+            "고용형태",
+            "학력",
+            "나이",
+        ],
         "coefficient": [
-            coefficient_map[variable]
-            for variable in plot_variables
+            -0.254,
+            -0.180,
+            -0.024,
+            0.020,
+            0.029,
+            0.039,
+            0.100,
+            0.769,
         ],
     }
 )
 
-
-# =========================================================
-# 발표자료와 동일한 회귀계수 그래프
-# =========================================================
-
 fig, ax = plt.subplots(figsize=(10, 6))
 
+# 발표자료처럼 음수는 주황색, 양수는 붉은 주황색
 colors = [
-    "#EF4444" if value > 0 else "#3B82F6"
+    "#FF7F0E" if value < 0 else "#F4512C"
     for value in coef_df["coefficient"]
 ]
 
@@ -905,11 +885,11 @@ bars = ax.barh(
     coef_df["variable_label"],
     coef_df["coefficient"],
     color=colors,
-    alpha=0.85,
-    edgecolor="white",
+    alpha=1.0,
+    edgecolor="none",
 )
 
-# 첫 번째 항목이 위에 오도록 설정
+# 첫 번째 항목이 위에 오도록 배치
 ax.invert_yaxis()
 
 ax.axvline(
@@ -918,43 +898,41 @@ ax.axvline(
     linewidth=1.5,
 )
 
-ax.set_xlim(-0.85, 1.0)
-
-ax.set_title(
-    "이탈위험에 영향을 주는 요인\n"
-    "(빨강=위험 증가, 파랑=위험 감소)",
-    fontsize=14,
-    fontweight="bold",
-    pad=12,
-)
+# 발표자료와 같은 축 범위
+ax.set_xlim(-0.45, 1.0)
 
 ax.set_xlabel(
     "회귀계수",
     fontsize=12,
 )
 
+# 발표자료처럼 제목은 표시하지 않음
+ax.set_title("")
+
 for bar, value in zip(
     bars,
     coef_df["coefficient"],
 ):
     ax.text(
-        value + 0.02 if value > 0 else value - 0.02,
+        value + 0.012 if value > 0 else value - 0.012,
         bar.get_y() + bar.get_height() / 2,
         f"{value:.3f}",
         va="center",
         ha="left" if value > 0 else "right",
-        fontsize=10,
+        fontsize=11,
+        color="#444444",
     )
 
 ax.grid(
     axis="x",
-    alpha=0.3,
+    alpha=0.22,
 )
 
+# y축 격자선은 제거
+ax.grid(axis="y", visible=False)
+
 plt.tight_layout()
-
 st.pyplot(fig)
-
 plt.close(fig)
 
 st.info(
