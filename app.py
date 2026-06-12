@@ -145,13 +145,13 @@ def show_compact_plot(
     center_ratio: float = 2,
 ) -> None:
     left_col, chart_col, right_col = st.columns(
-        [1, center_ratio, 1]
+        [1.5, center_ratio, 1.5]
     )
 
     with chart_col:
         st.pyplot(
             fig,
-            use_container_width=True,
+            use_container_width=False,
         )
 
     plt.close(fig)
