@@ -263,8 +263,13 @@ valid_youth AS (
     SELECT
         *,
         CASE
-            WHEN regular_status = 1 THEN '정규직'
-            WHEN regular_status = 2 THEN '비정규직'
+            WHEN CAST(regular_status AS REAL) = 1
+            THEN '정규직'
+
+            WHEN CAST(regular_status AS REAL) = 2
+            THEN '비정규직'
+
+            ELSE NULL
         END AS regular_label
 
     FROM joined
@@ -294,6 +299,40 @@ WHERE regular_label IS NOT NULL
 """
 
 survival_df = run_query(sql_survival)
+
+# 문자열 공백 및 자료형 정리
+survival_df["regular_label"] = (
+    survival_df["regular_label"]
+    .astype("string")
+    .str.strip()
+)
+
+for column in [
+    "observed_months",
+    "left_first_job",
+    "early_exit_12m",
+]:
+    survival_df[column] = pd.to_numeric(
+        survival_df[column],
+        errors="coerce",
+    )
+
+survival_df = survival_df.dropna(
+    subset=[
+        "observed_months",
+        "left_first_job",
+        "regular_label",
+    ]
+).copy()
+
+survival_df = survival_df[
+    survival_df["observed_months"] > 0
+].copy()
+
+survival_df["left_first_job"] = (
+    survival_df["left_first_job"]
+    .astype(int)
+)
 
 # SQLite에서 숫자가 TEXT/object로 들어온 경우를 대비해 강제 변환
 numeric_columns = [
@@ -348,6 +387,8 @@ fig, ax = plt.subplots(figsize=(10, 6))
 
 kmf = KaplanMeierFitter()
 
+plotted_groups = 0
+
 for group, color in zip(
     ["정규직", "비정규직"],
     ["#12355B", "#FFA500"],
@@ -359,22 +400,13 @@ for group, color in zip(
     if subset.empty:
         continue
 
-    durations = pd.to_numeric(
-        subset["observed_months"],
-        errors="coerce",
-    ).to_numpy(dtype=float)
+    durations = subset["observed_months"].to_numpy(
+        dtype=float
+    )
 
-    events = pd.to_numeric(
-        subset["left_first_job"],
-        errors="coerce",
-    ).fillna(0).round().astype(int).to_numpy()
-
-    valid_mask = np.isfinite(durations)
-    durations = durations[valid_mask]
-    events = events[valid_mask]
-
-    if len(durations) == 0:
-        continue
+    events = subset["left_first_job"].to_numpy(
+        dtype=int
+    )
 
     kmf.fit(
         durations=durations,
@@ -388,6 +420,8 @@ for group, color in zip(
         linewidth=3,
         color=color,
     )
+
+    plotted_groups += 1
 
 ax.set_xlim(0, 24)
 ax.set_ylim(0.60, 1.02)
@@ -422,7 +456,13 @@ ax.legend()
 sns.despine()
 plt.tight_layout()
 
-st.pyplot(fig)
+if plotted_groups == 0:
+    st.error(
+        "정규직·비정규직 생존분석 표본을 찾지 못했습니다."
+    )
+else:
+    st.pyplot(fig)
+
 plt.close(fig)
 
 st.info(
@@ -440,36 +480,91 @@ with st.expander("사용한 SQL 보기"):
 
 sql_worktype = """
 SELECT
-    year,
+    CAST(year AS INTEGER) AS year,
     category,
-    share
+    CAST(share AS REAL) AS share
+
 FROM kosis_근로형태
-WHERE year BETWEEN 2023 AND 2025
-AND category IN (
-    '- 계약기간 정함',
-    '- 계약기간 정하지 않음',
-    '- 시간제',
-    '- 전일제'
-)
-ORDER BY category, year
+
+WHERE CAST(year AS INTEGER)
+      BETWEEN 2023 AND 2025
+
+ORDER BY year, category
 """
 
 worktype_df = run_query(sql_worktype)
 
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 
+# category의 앞뒤 공백과 앞쪽 하이픈 제거
+worktype_df["category_clean"] = (
+    worktype_df["category"]
+    .astype(str)
+    .str.strip()
+    .str.replace(
+        r"^[\-\–\—]\s*",
+        "",
+        regex=True,
+    )
+)
+
+worktype_df["year"] = pd.to_numeric(
+    worktype_df["year"],
+    errors="coerce",
+)
+
+worktype_df["share"] = pd.to_numeric(
+    worktype_df["share"],
+    errors="coerce",
+)
+
 target_order = [
-    "- 계약기간 정함",
-    "- 계약기간 정하지 않음",
-    "- 시간제",
-    "- 전일제",
+    "계약기간 정함",
+    "계약기간 정하지 않음",
+    "시간제",
+    "전일제",
 ]
 
-pivot = worktype_df.pivot(
-    index="category",
+worktype_plot_df = worktype_df[
+    worktype_df["category_clean"].isin(
+        target_order
+    )
+].copy()
+
+pivot = worktype_plot_df.pivot_table(
+    index="category_clean",
     columns="year",
     values="share",
-).loc[target_order]
+    aggfunc="first",
+)
+
+pivot = pivot.reindex(target_order)
+
+# 완전히 값이 없는 행과 열 제거
+pivot = pivot.dropna(
+    axis=0,
+    how="all",
+)
+
+pivot = pivot.dropna(
+    axis=1,
+    how="all",
+)
+
+if pivot.empty:
+    st.error(
+        "근로형태 시각화에 사용할 항목을 "
+        "DB에서 찾지 못했습니다."
+    )
+
+    with st.expander("DB의 실제 category 값 확인"):
+        st.dataframe(
+            worktype_df[
+                ["category", "category_clean"]
+            ].drop_duplicates()
+        )
+
+    st.stop()
 
 orange_cmap = LinearSegmentedColormap.from_list(
     "custom_orange",
