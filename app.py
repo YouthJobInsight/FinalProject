@@ -762,6 +762,22 @@ ax.set_title(
 
 ax.grid(axis="x", color=GRID_COLOR, alpha=0.35)
 style_figure(fig, ax)
+def show_compact_plot(
+    fig,
+    width: int = 850,
+) -> None:
+    chart_container = st.container(
+        width=width,
+        horizontal_alignment="center",
+    )
+
+    with chart_container:
+        st.pyplot(
+            fig,
+            use_container_width=False,
+        )
+
+    plt.close(fig)
 sns.despine()
 
 plt.tight_layout()
