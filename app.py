@@ -55,7 +55,7 @@ set_korean_font()
 # 1. 페이지 설정
 # =========================================================
 st.set_page_config(
-    page_title="합격했는데, 왜 떠나는가?",
+    page_title="📊 합격했는데, 왜 떠나는가?",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -819,26 +819,85 @@ model = LogisticRegression(
 
 model.fit(X_scaled, y)
 
+# 모델에 입력한 독립변수 순서
+feature_cols = [
+    "age",
+    "edu",
+    "emp_stat",
+    "comp_sizea_r",
+    "earning1_r",
+    "satisfaction",
+    "wstat1",
+    "wstat2",
+]
+
+# feature_cols와 정확히 같은 순서의 한글 변수명
+feature_labels = [
+    "나이",
+    "학력",
+    "고용형태",
+    "기업규모",
+    "임금",
+    "근로환경만족도",
+    "임금보상인식",
+    "경력개발도움",
+]
+
+# =========================================================
+# 회귀계수와 변수명을 정확히 연결
+# =========================================================
+
+# 모델 계수는 feature_cols 순서대로 생성됨
+coefficient_map = dict(
+    zip(
+        feature_cols,
+        model.coef_[0]
+    )
+)
+
+# 발표자료에 표시할 정확한 변수 순서
+plot_variables = [
+    "wstat2",       # 경력개발도움
+    "wstat1",       # 임금보상인식
+    "satisfaction", # 근로환경만족도
+    "earning1_r",   # 임금
+    "comp_sizea_r", # 기업규모
+    "emp_stat",     # 고용형태
+    "edu",          # 학력
+    "age",          # 나이
+]
+
+plot_labels = [
+    "경력개발도움",
+    "임금보상인식",
+    "근로환경만족도",
+    "임금",
+    "기업규모",
+    "고용형태",
+    "학력",
+    "나이",
+]
+
 coef_df = pd.DataFrame(
     {
-        "variable": feature_cols,
-        "coefficient": model.coef_[0],
+        "variable": plot_variables,
+        "variable_label": plot_labels,
+        "coefficient": [
+            coefficient_map[variable]
+            for variable in plot_variables
+        ],
     }
 )
 
-coef_df["variable_label"] = (
-    coef_df["variable"].map(label_map)
-)
 
-coef_df = coef_df.sort_values(
-    "coefficient",
-    ascending=False,
-).reset_index(drop=True)
+# =========================================================
+# 발표자료와 동일한 회귀계수 그래프
+# =========================================================
 
 fig, ax = plt.subplots(figsize=(10, 6))
 
 colors = [
-    "#EF4444" if value > 0 else "#F97316"
+    "#EF4444" if value > 0 else "#3B82F6"
     for value in coef_df["coefficient"]
 ]
 
@@ -846,9 +905,12 @@ bars = ax.barh(
     coef_df["variable_label"],
     coef_df["coefficient"],
     color=colors,
-    alpha=0.9,
+    alpha=0.85,
     edgecolor="white",
 )
+
+# 첫 번째 항목이 위에 오도록 설정
+ax.invert_yaxis()
 
 ax.axvline(
     x=0,
@@ -858,11 +920,17 @@ ax.axvline(
 
 ax.set_xlim(-0.85, 1.0)
 
-ax.set_xlabel("회귀계수")
 ax.set_title(
-    "이탈위험에 영향을 미치는 요인",
-    fontsize=16,
+    "이탈위험에 영향을 주는 요인\n"
+    "(빨강=위험 증가, 파랑=위험 감소)",
+    fontsize=14,
     fontweight="bold",
+    pad=12,
+)
+
+ax.set_xlabel(
+    "회귀계수",
+    fontsize=12,
 )
 
 for bar, value in zip(
@@ -875,13 +943,18 @@ for bar, value in zip(
         f"{value:.3f}",
         va="center",
         ha="left" if value > 0 else "right",
+        fontsize=10,
     )
 
-ax.grid(axis="x", alpha=0.3)
+ax.grid(
+    axis="x",
+    alpha=0.3,
+)
 
 plt.tight_layout()
 
 st.pyplot(fig)
+
 plt.close(fig)
 
 st.info(
@@ -1037,20 +1110,34 @@ sql_job_quality = """
 WITH first_job AS (
     SELECT
         pid,
-        early_exit_12m,
-        monthly_wage_start AS first_wage,
-        regular_status AS first_regular
+
+        CAST(early_exit_12m AS INTEGER)
+            AS early_exit_12m,
+
+        CAST(monthly_wage_start AS REAL)
+            AS first_wage,
+
+        CAST(regular_status AS REAL)
+            AS first_regular
+
     FROM klips_job
-    WHERE job_order = 1
+
+    WHERE CAST(job_order AS INTEGER) = 1
 ),
 
 second_job AS (
     SELECT
         pid,
-        monthly_wage_start AS second_wage,
-        regular_status AS second_regular
+
+        CAST(monthly_wage_start AS REAL)
+            AS second_wage,
+
+        CAST(regular_status AS REAL)
+            AS second_regular
+
     FROM klips_job
-    WHERE job_order = 2
+
+    WHERE CAST(job_order AS INTEGER) = 2
 ),
 
 mobility AS (
@@ -1063,25 +1150,31 @@ mobility AS (
         s.second_regular,
 
         CASE
+            WHEN f.first_wage IS NULL
+              OR s.second_wage IS NULL
+            THEN NULL
+
             WHEN s.second_wage > f.first_wage
             THEN 1.0
-            WHEN s.second_wage IS NOT NULL
-            THEN 0.0
-            ELSE NULL
+
+            ELSE 0.0
         END AS wage_up,
 
         CASE
+            WHEN f.first_regular IS NULL
+              OR s.second_regular IS NULL
+            THEN NULL
+
             WHEN f.first_regular = 2
-            AND s.second_regular = 1
+             AND s.second_regular = 1
             THEN 1.0
-            WHEN s.second_regular IS NOT NULL
-            THEN 0.0
-            ELSE NULL
+
+            ELSE 0.0
         END AS regular_improved
 
-    FROM first_job f
+    FROM first_job AS f
 
-    LEFT JOIN second_job s
+    LEFT JOIN second_job AS s
         ON f.pid = s.pid
 )
 
@@ -1091,6 +1184,13 @@ SELECT
         THEN '조기이탈'
         ELSE '비조기이탈'
     END AS early_exit_label,
+
+    COUNT(*) AS total_n,
+
+    COUNT(wage_up) AS wage_valid_n,
+
+    COUNT(regular_improved)
+        AS regular_valid_n,
 
     ROUND(
         AVG(wage_up) * 100,
@@ -1103,6 +1203,8 @@ SELECT
     ) AS regular_improved_rate
 
 FROM mobility
+
+WHERE early_exit_12m IN (0, 1)
 
 GROUP BY early_exit_12m
 
