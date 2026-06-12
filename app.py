@@ -140,6 +140,22 @@ def style_figure(fig, axes):
             spine.set_color("#4A4038")
             spine.set_linewidth(0.8)
 
+def show_compact_plot(
+    fig,
+    center_ratio: float = 2,
+) -> None:
+    left_col, chart_col, right_col = st.columns(
+        [1, center_ratio, 1]
+    )
+
+    with chart_col:
+        st.pyplot(
+            fig,
+            use_container_width=True,
+        )
+
+    plt.close(fig)
+
 
 # =========================================================
 # 5. 제목
@@ -762,22 +778,6 @@ ax.set_title(
 
 ax.grid(axis="x", color=GRID_COLOR, alpha=0.35)
 style_figure(fig, ax)
-def show_compact_plot(
-    fig,
-    width: int = 850,
-) -> None:
-    chart_container = st.container(
-        width=width,
-        horizontal_alignment="center",
-    )
-
-    with chart_container:
-        st.pyplot(
-            fig,
-            use_container_width=False,
-        )
-
-    plt.close(fig)
 sns.despine()
 
 plt.tight_layout()
