@@ -553,6 +553,18 @@ def clean_worktype_category(value):
     return text
 
 
+def clean_worktype_category(value):
+    if pd.isna(value):
+        return pd.NA
+
+    text = str(value).strip()
+
+    while text.startswith(("-", "–", "—")):
+        text = text[1:].lstrip()
+
+    return text
+
+
 worktype_df["category_clean"] = (
     worktype_df["category"]
     .map(clean_worktype_category)
