@@ -7,13 +7,48 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import seaborn as sns
 
-# 한글 폰트 설정: packages.txt의 fonts-nanum 설치 후 자동 사용
-available_fonts = {font.name for font in fm.fontManager.ttflist}
-if "NanumGothic" in available_fonts:
-    plt.rcParams["font.family"] = "NanumGothic"
-elif "NanumBarunGothic" in available_fonts:
-    plt.rcParams["font.family"] = "NanumBarunGothic"
-plt.rcParams["axes.unicode_minus"] = False
+# =========================================================
+# 한글 폰트 설정
+# - Streamlit Cloud: packages.txt에 fonts-nanum 추가
+# - Codespaces: sudo apt-get install -y fonts-nanum 실행 후 앱 재시작
+# =========================================================
+def set_korean_font() -> None:
+    font_paths = [
+        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+        "/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf",
+        "/usr/share/fonts/truetype/nanum/NanumSquare.ttf",
+    ]
+
+    selected_font_name = None
+
+    for font_path in font_paths:
+        path = Path(font_path)
+        if path.exists():
+            fm.fontManager.addfont(str(path))
+            selected_font_name = fm.FontProperties(fname=str(path)).get_name()
+            break
+
+    if selected_font_name is None:
+        for font in fm.fontManager.ttflist:
+            if "Nanum" in font.name:
+                selected_font_name = font.name
+                break
+
+    if selected_font_name:
+        plt.rcParams["font.family"] = selected_font_name
+        sns.set_theme(
+            style="whitegrid",
+            font=selected_font_name,
+            rc={"axes.unicode_minus": False},
+        )
+    else:
+        # 폰트가 설치되지 않은 환경에서도 앱 자체는 중단되지 않게 둔다.
+        sns.set_theme(style="whitegrid")
+
+    plt.rcParams["axes.unicode_minus"] = False
+
+
+set_korean_font()
 
 
 # =========================================================
@@ -260,7 +295,7 @@ WHERE regular_label IS NOT NULL
 
 survival_df = run_query(sql_survival)
 
-# SQLite에서 TEXT로 읽힌 숫자 열을 실제 숫자형으로 변환
+# SQLite에서 숫자가 TEXT/object로 들어온 경우를 대비해 강제 변환
 numeric_columns = [
     "observed_months",
     "left_first_job",
@@ -268,12 +303,18 @@ numeric_columns = [
 ]
 
 for column in numeric_columns:
+    survival_df[column] = (
+        survival_df[column]
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+        .replace({"": np.nan, "None": np.nan, "nan": np.nan})
+    )
     survival_df[column] = pd.to_numeric(
         survival_df[column],
         errors="coerce",
     )
 
-# 생존분석에 필수인 값이 없는 행 제외
 survival_df = survival_df.dropna(
     subset=[
         "observed_months",
@@ -282,20 +323,22 @@ survival_df = survival_df.dropna(
     ]
 ).copy()
 
-# 잘못된 근속기간 제거
 survival_df = survival_df[
-    survival_df["observed_months"] > 0
+    np.isfinite(survival_df["observed_months"])
+    & (survival_df["observed_months"] > 0)
 ].copy()
 
-# 사건 여부는 0 또는 1의 정수로 정리
 survival_df["left_first_job"] = (
     survival_df["left_first_job"]
+    .fillna(0)
+    .round()
     .astype(int)
 )
 
 survival_df["early_exit_12m"] = (
     survival_df["early_exit_12m"]
     .fillna(0)
+    .round()
     .astype(int)
 )
 
@@ -313,9 +356,29 @@ for group, color in zip(
         survival_df["regular_label"] == group
     ].copy()
 
+    if subset.empty:
+        continue
+
+    durations = pd.to_numeric(
+        subset["observed_months"],
+        errors="coerce",
+    ).to_numpy(dtype=float)
+
+    events = pd.to_numeric(
+        subset["left_first_job"],
+        errors="coerce",
+    ).fillna(0).round().astype(int).to_numpy()
+
+    valid_mask = np.isfinite(durations)
+    durations = durations[valid_mask]
+    events = events[valid_mask]
+
+    if len(durations) == 0:
+        continue
+
     kmf.fit(
-        durations=subset["observed_months"],
-        event_observed=subset["left_first_job"],
+        durations=durations,
+        event_observed=events,
         label=group,
     )
 
