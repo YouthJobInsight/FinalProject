@@ -94,6 +94,54 @@ def run_query(query: str) -> pd.DataFrame:
 
 
 # =========================================================
+# 4-1. 색상 / 스타일 설정
+# =========================================================
+PAGE_BG = "#F7F2E8"
+CHART_BG = "#FFFFFF"
+GRID_COLOR = "#D8CFC2"
+TEXT_COLOR = "#2F2A24"
+
+PRIMARY_ORANGE = "#F4A300"
+DEEP_ORANGE = "#C96A00"
+PEACH = "#EDC3A8"
+LIGHT_BLUE = "#C9D7F0"
+MID_BLUE = "#AFC4E8"
+NAVY = "#1F3B5C"
+ACCENT_RED = "#E45D35"
+SOFT_ORANGE = "#FF8A26"
+
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-color: {PAGE_BG};
+        color: {TEXT_COLOR};
+    }}
+    [data-testid="stHeader"] {{
+        background: transparent;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+def style_figure(fig, axes):
+    fig.patch.set_facecolor(CHART_BG)
+    if not isinstance(axes, (list, tuple, np.ndarray)):
+        axes = [axes]
+    for ax in axes:
+        ax.set_facecolor(CHART_BG)
+        ax.tick_params(colors=TEXT_COLOR)
+        ax.xaxis.label.set_color(TEXT_COLOR)
+        ax.yaxis.label.set_color(TEXT_COLOR)
+        ax.title.set_color(TEXT_COLOR)
+        for spine in ax.spines.values():
+            spine.set_color("#4A4038")
+            spine.set_linewidth(0.8)
+
+
+# =========================================================
 # 5. 제목
 # =========================================================
 st.title("합격했는데, 왜 떠나는가?")
@@ -143,6 +191,9 @@ ax1.plot(
     linewidth=4,
     marker="o",
     markersize=10,
+    color=PRIMARY_ORANGE,
+    markerfacecolor=PRIMARY_ORANGE,
+    markeredgecolor=PRIMARY_ORANGE,
 )
 
 for _, row in wage_turnover_df.iterrows():
@@ -162,7 +213,7 @@ ax1.set_title(
     loc="left",
     fontweight="bold",
 )
-ax1.grid(axis="y", alpha=0.2)
+ax1.grid(axis="y", color=GRID_COLOR, alpha=0.35)
 
 # 하단: 이탈률
 ax2.plot(
@@ -171,6 +222,9 @@ ax2.plot(
     linewidth=4,
     marker="o",
     markersize=10,
+    color=DEEP_ORANGE,
+    markerfacecolor=DEEP_ORANGE,
+    markeredgecolor=DEEP_ORANGE,
 )
 
 for _, row in wage_turnover_df.iterrows():
@@ -190,8 +244,9 @@ ax2.set_title(
     loc="left",
     fontweight="bold",
 )
-ax2.grid(axis="y", alpha=0.2)
+ax2.grid(axis="y", color=GRID_COLOR, alpha=0.35)
 
+style_figure(fig, [ax1, ax2])
 sns.despine()
 
 fig.suptitle(
@@ -391,7 +446,7 @@ plotted_groups = 0
 
 for group, color in zip(
     ["정규직", "비정규직"],
-    ["#12355B", "#FFA500"],
+    [NAVY, DEEP_ORANGE],
 ):
     subset = survival_df[
         survival_df["regular_label"] == group
@@ -430,15 +485,15 @@ ax.axvline(
     x=12,
     linestyle="--",
     linewidth=2.5,
-    color="#C0392B",
+    color=DEEP_ORANGE,
     label="조기이탈 기준 (12개월)",
 )
 
 ax.axvspan(
     0,
     12,
-    color="#C0392B",
-    alpha=0.06,
+    color=PEACH,
+    alpha=0.18,
 )
 
 ax.set_title(
@@ -450,9 +505,11 @@ ax.set_title(
 
 ax.set_xlabel("근속기간(개월)")
 ax.set_ylabel("직장 유지 비율")
-ax.grid(linestyle="--", alpha=0.2)
-ax.legend()
+ax.grid(linestyle="--", color=GRID_COLOR, alpha=0.35)
+ax.legend(frameon=True, facecolor=CHART_BG, edgecolor=GRID_COLOR)
 
+style_figure(fig, ax)
+style_figure(fig, ax)
 sns.despine()
 plt.tight_layout()
 
@@ -569,11 +626,11 @@ if pivot.empty:
 orange_cmap = LinearSegmentedColormap.from_list(
     "custom_orange",
     [
-        "#FFF8F2",
-        "#FEE6D5",
-        "#F9C9A7",
-        "#F39C6B",
-        "#D96C1D",
+        "#F8EFE6",
+        "#F1DCC9",
+        "#ECB789",
+        "#E89654",
+        "#DE7420",
     ],
 )
 
@@ -624,7 +681,9 @@ for i in range(pivot.shape[0]):
             color=text_color,
         )
 
-plt.colorbar(im, ax=ax, label="비중(%)")
+cbar = plt.colorbar(im, ax=ax, label="비중(%)")
+cbar.ax.yaxis.label.set_color(TEXT_COLOR)
+cbar.ax.tick_params(colors=TEXT_COLOR)
 
 ax.set_title(
     "첫 일자리 근로형태의 변화",
@@ -635,6 +694,7 @@ ax.set_title(
 ax.set_xlabel("")
 ax.set_ylabel("")
 
+style_figure(fig, ax)
 plt.tight_layout()
 
 st.pyplot(fig)
@@ -660,9 +720,21 @@ reason_avg_df = run_query(sql_reason_avg)
 
 fig, ax = plt.subplots(figsize=(10, 6))
 
+reason_colors = [
+    "#D9D9D9",
+    "#C8C0BC",
+    "#BEB1AA",
+    "#D6B4A9",
+    "#F1A183",
+    "#D96F00",
+    "#9C5300",
+]
+
 bars = ax.barh(
     reason_avg_df["category"],
     reason_avg_df["avg_share"],
+    color=reason_colors[: len(reason_avg_df)],
+    edgecolor="white",
 )
 
 for bar, value in zip(
@@ -685,7 +757,8 @@ ax.set_title(
     fontweight="bold",
 )
 
-ax.grid(axis="x", alpha=0.2)
+ax.grid(axis="x", color=GRID_COLOR, alpha=0.35)
+style_figure(fig, ax)
 sns.despine()
 
 plt.tight_layout()
@@ -714,11 +787,24 @@ values="share",
 
 fig, ax = plt.subplots(figsize=(11, 6))
 
+reason_color_map = {
+    "개인/가족적이유(건강,육아,결혼등)": "#9C5300",
+    "그 외": "#B76B00",
+    "근로여건 불만족(보수, 근로시간 등)": "#F39A59",
+    "임시적, 계절적인 일의 완료, 계약기간 끝남": "#D99876",
+    "전공, 지식, 기술, 적성등이 맞지않아서": "#B7AAA5",
+    "전망이 없어서": "#C9C0BB",
+    "직장휴업, 폐업, 파산 등": "#E0E0E0",
+}
+
+stack_colors = [reason_color_map.get(col, "#CCCCCC") for col in reason_pivot.columns]
+
 reason_pivot.plot(
     kind="bar",
     stacked=True,
     ax=ax,
     width=0.6,
+    color=stack_colors,
 )
 
 ax.set_title(
@@ -844,40 +930,60 @@ feature_labels = [
 ]
 
 # =========================================================
-# 발표자료와 동일한 회귀계수 그래프
-# - 발표자료에서 사용한 변수명·계수·순서를 그대로 고정
+# 회귀계수와 변수명을 정확히 연결
 # =========================================================
+
+# 모델 계수는 feature_cols 순서대로 생성됨
+coefficient_map = dict(
+    zip(
+        feature_cols,
+        model.coef_[0]
+    )
+)
+
+# 발표자료에 표시할 정확한 변수 순서
+plot_variables = [
+    "wstat2",       # 경력개발도움
+    "wstat1",       # 임금보상인식
+    "satisfaction", # 근로환경만족도
+    "earning1_r",   # 임금
+    "comp_sizea_r", # 기업규모
+    "emp_stat",     # 고용형태
+    "edu",          # 학력
+    "age",          # 나이
+]
+
+plot_labels = [
+    "경력개발도움",
+    "임금보상인식",
+    "근로환경만족도",
+    "임금",
+    "기업규모",
+    "고용형태",
+    "학력",
+    "나이",
+]
 
 coef_df = pd.DataFrame(
     {
-        "variable_label": [
-            "경력개발도움",
-            "임금보상인식",
-            "근로환경만족도",
-            "임금",
-            "기업규모",
-            "고용형태",
-            "학력",
-            "나이",
-        ],
+        "variable": plot_variables,
+        "variable_label": plot_labels,
         "coefficient": [
-            -0.254,
-            -0.180,
-            -0.024,
-            0.020,
-            0.029,
-            0.039,
-            0.100,
-            0.769,
+            coefficient_map[variable]
+            for variable in plot_variables
         ],
     }
 )
 
+
+# =========================================================
+# 발표자료와 동일한 회귀계수 그래프
+# =========================================================
+
 fig, ax = plt.subplots(figsize=(10, 6))
 
-# 발표자료처럼 음수는 주황색, 양수는 붉은 주황색
 colors = [
-    "#FF7F0E" if value < 0 else "#F4512C"
+    ACCENT_RED if value > 0 else SOFT_ORANGE
     for value in coef_df["coefficient"]
 ]
 
@@ -885,11 +991,11 @@ bars = ax.barh(
     coef_df["variable_label"],
     coef_df["coefficient"],
     color=colors,
-    alpha=1.0,
-    edgecolor="none",
+    alpha=0.85,
+    edgecolor="white",
 )
 
-# 첫 번째 항목이 위에 오도록 배치
+# 첫 번째 항목이 위에 오도록 설정
 ax.invert_yaxis()
 
 ax.axvline(
@@ -898,41 +1004,45 @@ ax.axvline(
     linewidth=1.5,
 )
 
-# 발표자료와 같은 축 범위
-ax.set_xlim(-0.45, 1.0)
+ax.set_xlim(-0.85, 1.0)
+
+ax.set_title(
+    "이탈위험에 영향을 주는 요인\n"
+    "(빨강=위험 증가, 파랑=위험 감소)",
+    fontsize=14,
+    fontweight="bold",
+    pad=12,
+)
 
 ax.set_xlabel(
     "회귀계수",
     fontsize=12,
 )
 
-# 발표자료처럼 제목은 표시하지 않음
-ax.set_title("")
-
 for bar, value in zip(
     bars,
     coef_df["coefficient"],
 ):
     ax.text(
-        value + 0.012 if value > 0 else value - 0.012,
+        value + 0.02 if value > 0 else value - 0.02,
         bar.get_y() + bar.get_height() / 2,
         f"{value:.3f}",
         va="center",
         ha="left" if value > 0 else "right",
-        fontsize=11,
-        color="#444444",
+        fontsize=10,
     )
 
 ax.grid(
     axis="x",
-    alpha=0.22,
+    color=GRID_COLOR,
+    alpha=0.35,
 )
 
-# y축 격자선은 제거
-ax.grid(axis="y", visible=False)
-
+style_figure(fig, ax)
 plt.tight_layout()
+
 st.pyplot(fig)
+
 plt.close(fig)
 
 st.info(
@@ -1046,9 +1156,13 @@ reemployment_df = run_query(sql_reemployment)
 
 fig, ax = plt.subplots(figsize=(8, 5))
 
+reemployment_colors = [PEACH, DEEP_ORANGE]
+
 bars = ax.bar(
     reemployment_df["early_exit_label"],
     reemployment_df["reemployment_12m_rate"],
+    color=reemployment_colors[: len(reemployment_df)],
+    edgecolor="white",
 )
 
 for bar, value in zip(
@@ -1076,7 +1190,8 @@ ax.set_ylim(
     * 1.15,
 )
 
-ax.grid(axis="y", linestyle="--", alpha=0.25)
+ax.grid(axis="y", linestyle="--", color=GRID_COLOR, alpha=0.35)
+style_figure(fig, ax)
 sns.despine()
 
 plt.tight_layout()
@@ -1201,6 +1316,8 @@ bars1 = ax.bar(
     quality_df["wage_up_rate"],
     width,
     label="임금 상승",
+    color=[PEACH, DEEP_ORANGE][: len(quality_df)],
+    edgecolor="white",
 )
 
 bars2 = ax.bar(
@@ -1208,6 +1325,8 @@ bars2 = ax.bar(
     quality_df["regular_improved_rate"],
     width,
     label="정규직 개선",
+    color=[LIGHT_BLUE, MID_BLUE][: len(quality_df)],
+    edgecolor="white",
 )
 
 ax.set_xticks(x)
@@ -1235,8 +1354,9 @@ for bars in [bars1, bars2]:
                 fontweight="bold",
             )
 
-ax.legend()
-ax.grid(axis="y", linestyle="--", alpha=0.25)
+ax.legend(frameon=True, facecolor=CHART_BG, edgecolor=GRID_COLOR, title="이동 결과")
+ax.grid(axis="y", linestyle="--", color=GRID_COLOR, alpha=0.35)
+style_figure(fig, ax)
 sns.despine()
 
 plt.tight_layout()
