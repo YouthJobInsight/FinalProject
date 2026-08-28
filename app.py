@@ -1076,28 +1076,88 @@ model.fit(X_scaled, y)
 st.divider()
 
 st.header("Q3. 과연 조기이탈은 나쁜가?")
+
 sql_reemployment = """
-WITH first_job AS (
+WITH joined AS (
+    SELECT
+        j.pid,
+        j.start_year,
+        j.start_month,
+        j.start_ym,
+        j.left_first_job,
+        j.tenure_months,
+        j.early_exit_12m,
+
+        p.birth_year,
+        p.birth_month,
+
+        j.start_year
+        - p.birth_year
+        - CASE
+            WHEN j.start_month IS NOT NULL
+             AND p.birth_month IS NOT NULL
+             AND j.start_month < p.birth_month
+            THEN 1
+            ELSE 0
+          END AS start_age,
+
+        CASE
+            WHEN j.left_first_job = 1
+            THEN j.tenure_months
+            ELSE (2023 * 12 + 6) - j.start_ym + 1
+        END AS observed_months
+
+    FROM klips_first_job j
+
+    INNER JOIN klips_person p
+        ON j.pid = p.pid
+),
+
+valid_youth AS (
     SELECT
         pid,
-        end_ym,
+        left_first_job,
         early_exit_12m
+
+    FROM joined
+
+    WHERE start_age BETWEEN 15 AND 29
+
+      AND (
+          observed_months >= 12
+
+          OR (
+              left_first_job = 1
+              AND tenure_months <= 12
+          )
+      )
+),
+
+first_job AS (
+    SELECT
+        pid,
+        end_ym
+
     FROM klips_job
-    WHERE job_order = 1
+
+    WHERE CAST(job_order AS INTEGER) = 1
 ),
 
 second_job AS (
     SELECT
         pid,
         start_ym AS second_start_ym
+
     FROM klips_job
-    WHERE job_order = 2
+
+    WHERE CAST(job_order AS INTEGER) = 2
 ),
 
 transition AS (
     SELECT
-        f.pid,
-        f.early_exit_12m,
+        y.pid,
+        y.early_exit_12m,
+        y.left_first_job,
         f.end_ym,
         s.second_start_ym,
 
@@ -1112,15 +1172,25 @@ transition AS (
 
         CASE
             WHEN s.second_start_ym - f.end_ym
-                BETWEEN 0 AND 12
+                 BETWEEN 0 AND 6
+            THEN 1
+            ELSE 0
+        END AS reemployed_6m,
+
+        CASE
+            WHEN s.second_start_ym - f.end_ym
+                 BETWEEN 0 AND 12
             THEN 1
             ELSE 0
         END AS reemployed_12m
 
-    FROM first_job f
+    FROM valid_youth y
+
+    LEFT JOIN first_job f
+        ON y.pid = f.pid
 
     LEFT JOIN second_job s
-        ON f.pid = s.pid
+        ON y.pid = s.pid
 )
 
 SELECT
@@ -1139,7 +1209,7 @@ SELECT
 
 FROM transition
 
-WHERE end_ym IS NOT NULL
+WHERE left_first_job = 1
 
 GROUP BY early_exit_12m
 
@@ -1193,12 +1263,63 @@ plt.tight_layout()
 show_compact_plot(fig)
 
 sql_job_quality = """
-WITH first_job AS (
+WITH joined AS (
+    SELECT
+        j.pid,
+        j.start_year,
+        j.start_month,
+        j.start_ym,
+        j.left_first_job,
+        j.tenure_months,
+        j.early_exit_12m,
+
+        p.birth_year,
+        p.birth_month,
+
+        j.start_year
+        - p.birth_year
+        - CASE
+            WHEN j.start_month IS NOT NULL
+             AND p.birth_month IS NOT NULL
+             AND j.start_month < p.birth_month
+            THEN 1
+            ELSE 0
+          END AS start_age,
+
+        CASE
+            WHEN j.left_first_job = 1
+            THEN j.tenure_months
+            ELSE (2023 * 12 + 6) - j.start_ym + 1
+        END AS observed_months
+
+    FROM klips_first_job j
+
+    INNER JOIN klips_person p
+        ON j.pid = p.pid
+),
+
+valid_youth AS (
     SELECT
         pid,
+        early_exit_12m
 
-        CAST(early_exit_12m AS INTEGER)
-            AS early_exit_12m,
+    FROM joined
+
+    WHERE start_age BETWEEN 15 AND 29
+
+      AND (
+          observed_months >= 12
+
+          OR (
+              left_first_job = 1
+              AND tenure_months <= 12
+          )
+      )
+),
+
+first_quality AS (
+    SELECT
+        pid,
 
         CAST(monthly_wage_start AS REAL)
             AS first_wage,
@@ -1211,7 +1332,7 @@ WITH first_job AS (
     WHERE CAST(job_order AS INTEGER) = 1
 ),
 
-second_job AS (
+second_quality AS (
     SELECT
         pid,
 
@@ -1228,10 +1349,12 @@ second_job AS (
 
 mobility AS (
     SELECT
-        f.pid,
-        f.early_exit_12m,
+        y.pid,
+        y.early_exit_12m,
+
         f.first_wage,
         f.first_regular,
+
         s.second_wage,
         s.second_regular,
 
@@ -1247,8 +1370,7 @@ mobility AS (
         END AS wage_up,
 
         CASE
-            WHEN f.first_regular IS NULL
-              OR s.second_regular IS NULL
+            WHEN s.second_regular IS NULL
             THEN NULL
 
             WHEN f.first_regular = 2
@@ -1258,10 +1380,13 @@ mobility AS (
             ELSE 0.0
         END AS regular_improved
 
-    FROM first_job AS f
+    FROM valid_youth y
 
-    LEFT JOIN second_job AS s
-        ON f.pid = s.pid
+    LEFT JOIN first_quality f
+        ON y.pid = f.pid
+
+    LEFT JOIN second_quality s
+        ON y.pid = s.pid
 )
 
 SELECT
@@ -1273,7 +1398,8 @@ SELECT
 
     COUNT(*) AS total_n,
 
-    COUNT(wage_up) AS wage_valid_n,
+    COUNT(wage_up)
+        AS wage_valid_n,
 
     COUNT(regular_improved)
         AS regular_valid_n,
